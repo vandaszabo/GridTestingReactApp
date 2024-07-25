@@ -1,64 +1,66 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { AgGridReact } from 'ag-grid-react'; // React Data Grid Component
+import React, { useState } from 'react';
+import { AgGridReact } from 'ag-grid-react';
 import 'ag-grid-community/styles/ag-grid.css'; // Mandatory CSS required by the Data Grid
-import 'ag-grid-community/styles/ag-theme-quartz.css'; // Optional Theme applied to the Data Grid
+import 'ag-grid-community/styles/ag-theme-quartz.css';
+
 import './App.css';
 
 function App() {
-  // Row Data: The data to be displayed.
-  const [data, setData] = useState([]);
-  const [colDefs, setColDefs] = useState([]);
+  const [gridApi, setGridApi] = useState(null);
 
-  // Set column features
-  const defaultColDef = useMemo(() => {
-    return {
-      flex: 1,
-      filter: true,
-      sortable: true,
-      floatingFilter: true,
-    };
-  }, []);
+  const perPage = 50;
+  const paginationPageSizeSelector = [10, 20, 50, 100];
+  const columns = [
+    { field: "firstName", headerName: "First Name" },
+    { field: "lastName", headerName: "Last Name" },
+    { field: "email", headerName: "Email" }
+  ]
 
-  // Fetch data and set state
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // Await fetch response
-        const response = await fetch('https://localhost:7076/api/Employee/Employees');
+  const dataSource = {
+    pageSize: perPage,
+    getRows: (params) => {
+      const page = Math.floor(params.endRow / perPage);
+      console.log("Fetching page:", page);
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
-        }
+      fetch(`http://localhost:5105/api/Employee/GetEmployees?CurrentPage=${page}&PageSize=${perPage}`)
+        .then((res) => res.json())
+        .then((res) => {
+          const { data, totalRecords } = res;
+          params.successCallback(data, totalRecords);
+        })
+        .catch((error) => {
+          console.error("Error fetching data:", error);
+          params.failCallback();
+        });
+    }
+  };
+  console.log("dataSource: ", dataSource);
 
-        // Await parsing of JSON
-        const result = await response.json();
-
-        // Set data
-        setData(result);
-        console.log("Amount of data row received: ", result.length);
-
-        // Create column definitions from object keys
-        if (result.length > 0) {
-          const keys = Object.keys(result[0]);
-          const newColDefs = keys.map((key) => ({ field: key }));
-          setColDefs(newColDefs);
-        }
-      } catch (err) {
-        console.error('Fetch error:', err);
-      }
-    };
-
-    fetchData();
-  }, []);
+  const onGridReady = (params) => {
+    setGridApi(params.api);
+    params.api.setDatasource(dataSource);
+  };
 
   return (
-    <div className="ag-theme-quartz-dark" style={{ height: 700, width: 1500 }}>
-      <AgGridReact
-        rowData={data}
-        columnDefs={colDefs}
-        defaultColDef={defaultColDef}
-        pagination={true}
-      />
+    <div className="App">
+      <h2>
+        Server side pagination in the React AG Grid
+      </h2>
+      <div className="ag-theme-quartz-dark" style={{ height: 700, width: 1500 }}>
+        <AgGridReact
+          datasource={dataSource}
+          pagination={true}
+          rowModelType={"infinite"} // Set row model type to infinite for server-side pagination
+          paginationPageSize={perPage}
+          paginationPageSizeSelector={paginationPageSizeSelector}
+          cacheBlockSize={perPage}
+          maxBlocksInCache={3}  // Number of pages to keep
+          onGridReady={onGridReady}
+          rowHeight={60} // Set the row height
+          defaultColDef={{ flex: 1 }} // Set default column definition with flex grow
+          columnDefs={columns} // Define column definitions
+        />
+      </div>
     </div>
   );
 }
