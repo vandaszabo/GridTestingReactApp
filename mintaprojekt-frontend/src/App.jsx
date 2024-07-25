@@ -6,23 +6,44 @@ import 'ag-grid-community/styles/ag-theme-quartz.css';
 import './App.css';
 
 function App() {
-  const [gridApi, setGridApi] = useState(null);
 
+  const [gridApi, setGridApi] = useState(null);
+  console.log("gridapi: ",gridApi);
   const perPage = 50;
   const paginationPageSizeSelector = [10, 20, 50, 100];
   const columns = [
+    { field: "employeeID", headerName: "Employee ID" },
     { field: "firstName", headerName: "First Name" },
     { field: "lastName", headerName: "Last Name" },
-    { field: "email", headerName: "Email" }
+    { field: "email", headerName: "Email" },
+    { field: "jobTitle", headerName: "Job Title" },
+    { field: "hireDate", headerName: "Hire Date" },
+    { field: "departmentID", headerName: "Department ID" }
   ]
 
   const dataSource = {
     pageSize: perPage,
     getRows: (params) => {
-      const page = Math.floor(params.endRow / perPage);
-      console.log("Fetching page:", page);
+      console.log("Request params: ",JSON.stringify(params));
+      let url=`http://localhost:5105/api/Employee/GetEmployees?`;
+      
+      // // Sorting
+      // if(params.sortModel.length){
+      //   const {colId, sort} = params.sortModel[0]
+      //   url+=`OrderByColumn=${colId}&OrderDir=${sort}&`
+      // }
 
-      fetch(`http://localhost:5105/api/Employee/GetEmployees?CurrentPage=${page}&PageSize=${perPage}`)
+      // // Filtering
+      // const filterKeys = Object.keys(params.filterModel);
+      // filterKeys.forEach(key=>{
+      //  url+= `${key}=${params.filterModel[key].filter}&`;
+      // })
+      
+      // Pagination
+      const page = Math.floor(params.endRow / perPage);
+      url+=`CurrentPage=${page}&PageSize=${perPage}`
+      console.log("Fetching page:", page);
+      fetch(url)
         .then((res) => res.json())
         .then((res) => {
           const { data, totalRecords } = res;
@@ -56,9 +77,9 @@ function App() {
           cacheBlockSize={perPage}
           maxBlocksInCache={3}  // Number of pages to keep
           onGridReady={onGridReady}
-          rowHeight={60} // Set the row height
-          defaultColDef={{ flex: 1 }} // Set default column definition with flex grow
-          columnDefs={columns} // Define column definitions
+          rowHeight={60}
+          defaultColDef={{ flex: 1, filter: true, floatingFilter: true, sortable: true }}
+          columnDefs={columns}
         />
       </div>
     </div>
